@@ -1,0 +1,9 @@
+1.- Compilar proyecto: mvn clean package -DskipTests
+2.- Desplegar funciones en Azure: mvn azure-functions:deploy
+
+[INFO] HTTP Trigger Urls:
+    ActualizarRol : https://rolesfunction.azurewebsites.net/api/actualizarrol
+    AsignarRol : https://rolesfunction.azurewebsites.net/api/asignarrol
+    CrearRol : https://rolesfunction.azurewebsites.net/api/crearrol
+    EliminarRol : https://rolesfunction.azurewebsites.net/api/eliminarrol
+    ObtenerRol : https://rolesfunction.azurewebsites.net/api/obtenerrol

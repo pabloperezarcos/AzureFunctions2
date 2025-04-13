@@ -1,0 +1,22 @@
+# Tipo Usuario: representa la información de un usuario
+type Usuario {
+  id: ID!              # Identificador único (no nulo)
+  nombre: String!      # Nombre del usuario (no nulo)
+  email: String!       # Email del usuario (no nulo)
+}
+
+# Query: Define las operaciones para leer o consultar datos
+type Query {
+    # Consulta para obtener un usuario por su ID
+    usuario(id: ID!): Usuario
+
+    # Consulta para obtener la lista de todos los usuarios
+    usuarios: [Usuario!]!
+}
+
+# Mutation: Define las operaciones que modifican los datos (crear, actualizar, eliminar)
+type Mutation {
+    crearUsuario(nombre: String!, email: String!): Usuario
+    actualizarUsuario(id: ID!, nombre: String, email: String): Usuario
+    eliminarUsuario(id: ID!): Boolean
+}
