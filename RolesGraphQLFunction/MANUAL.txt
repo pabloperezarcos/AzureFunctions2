@@ -1,3 +1,5 @@
 1.- Compilar proyecto: mvn clean package -DskipTests
 2.- Desplegar funciones en Azure: mvn azure-functions:deploy
 
+[INFO] HTTP Trigger Urls:
+    RolesGraphQLHandler : https://rolesgraphqlfunction.azurewebsites.net/api/rolesgraphql
