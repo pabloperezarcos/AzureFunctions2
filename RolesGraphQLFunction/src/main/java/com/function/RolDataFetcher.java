@@ -54,20 +54,21 @@ public class RolDataFetcher {
     public Map<String, Object> crearRol(String rolName) throws SQLException {
         try (Connection conn = getConnection()) {
             String sql = "INSERT INTO ROLES (rol) VALUES (?)";
-            try (PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setString(1, rolName);
                 int rows = ps.executeUpdate();
                 if (rows > 0) {
-                    try (ResultSet keys = ps.getGeneratedKeys()) {
-                        if (keys.next()) {
-                            int idGenerado = keys.getInt(1);
+                    try (Statement st = conn.createStatement();
+                            ResultSet rs = st.executeQuery("SELECT \"ADMIN\".\"ISEQ$$_112310\".currval FROM dual")) {
+                        if (rs.next()) {
+                            int idGenerado = rs.getInt(1);
                             return Map.of("id", idGenerado, "rol", rolName);
                         }
                     }
                 }
             }
         }
-        throw new SQLException("No se pudo crear el rol en la BD.");
+        throw new SQLException("No se pudo crear el rol en la BD con secuencia.");
     }
 
     /**
