@@ -13,7 +13,7 @@ public class RolDataFetcher {
      */
     public Map<String, Object> obtenerRolPorId(int id) throws SQLException {
         try (Connection conn = getConnection()) {
-            String sql = "SELECT rol FROM \"ROLES\" WHERE id_rol = ?";
+            String sql = "SELECT rol FROM ROLES WHERE id_rol = ?";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setInt(1, id);
                 try (ResultSet rs = ps.executeQuery()) {
@@ -34,7 +34,7 @@ public class RolDataFetcher {
      */
     public List<Map<String, Object>> listarRoles() throws SQLException {
         try (Connection conn = getConnection()) {
-            String sql = "SELECT id_rol, rol FROM \"ROLES\"";
+            String sql = "SELECT id_rol, rol FROM ROLES";
             try (PreparedStatement ps = conn.prepareStatement(sql);
                     ResultSet rs = ps.executeQuery()) {
                 List<Map<String, Object>> roles = new ArrayList<>();
@@ -53,7 +53,7 @@ public class RolDataFetcher {
      */
     public Map<String, Object> crearRol(String rolName) throws SQLException {
         try (Connection conn = getConnection()) {
-            String sql = "INSERT INTO \"ROLES\" (rol) VALUES (?)";
+            String sql = "INSERT INTO ROLES (rol) VALUES (?)";
             try (PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
                 ps.setString(1, rolName);
                 int rows = ps.executeUpdate();
@@ -75,7 +75,7 @@ public class RolDataFetcher {
      */
     public Map<String, Object> actualizarRol(int id, String newRol) throws SQLException {
         try (Connection conn = getConnection()) {
-            String sql = "UPDATE \"ROLES\" SET rol = ? WHERE id_rol = ?";
+            String sql = "UPDATE ROLES SET rol = ? WHERE id_rol = ?";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setString(1, newRol);
                 ps.setInt(2, id);
@@ -94,7 +94,7 @@ public class RolDataFetcher {
      */
     public boolean eliminarRol(int id) throws SQLException {
         try (Connection conn = getConnection()) {
-            String sql = "DELETE FROM \"ROLES\" WHERE id_rol = ?";
+            String sql = "DELETE FROM ROLES WHERE id_rol = ?";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setInt(1, id);
                 int rows = ps.executeUpdate();
