@@ -10,27 +10,26 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Optional;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.OffsetDateTime;
+import java.util.UUID;
+
 /**
- * Función serverless en Azure que permite obtener la información de un usuario
- * a partir de su identificador. La petición debe ser del tipo GET y debe incluir
- * el parámetro "id" en la URL, por ejemplo:
- *
- *   https://[NombreFunctionApp].azurewebsites.net/api/obtenerusuario?id=1
- *
- * La función se conecta a la base de datos Oracle utilizando las variables de
- * entorno DB_URL, DB_USER y DB_PASSWORD. Si se encuentra el usuario, devuelve
- * los datos en formato JSON; de lo contrario, retorna un error.
+ * Función serverless en Azure para consultar un usuario y enviar evento a Event
+ * Grid.
  */
 public class ObtenerUsuarioFunction {
 
+    private static final String EVENT_GRID_TOPIC_ENDPOINT = "https://duoc-eventgrid.eastus-1.eventgrid.azure.net/api/events";
+    private static final String EVENT_GRID_TOPIC_KEY = "1gI3QLmJzNponcQy1U6MGqj9FVXeKzrjqbZRbfyhFs5Gd89Woz9gJQQJ99BDACYeBjFXJ3w3AAABAZEGGB1u";
+
     @FunctionName("ObtenerUsuario")
     public HttpResponseMessage run(
-            @HttpTrigger(
-                name = "req",
-                methods = { HttpMethod.GET },
-                authLevel = AuthorizationLevel.ANONYMOUS
-            )
-            HttpRequestMessage<Optional<String>> request,
+            @HttpTrigger(name = "req", methods = {
+                    HttpMethod.GET }, authLevel = AuthorizationLevel.ANONYMOUS) HttpRequestMessage<Optional<String>> request,
             final ExecutionContext context) {
 
         context.getLogger().info("Procesando solicitud para obtener usuario.");
@@ -71,6 +70,9 @@ public class ObtenerUsuarioFunction {
                     if (rs.next()) {
                         nombre = rs.getString("nombre");
                         email = rs.getString("email");
+
+                        // Enviar evento a Event Grid
+                        sendEventToEventGrid("UsuarioConsultado", userId, nombre, email, context);
                     } else {
                         return request.createResponseBuilder(HttpStatus.NOT_FOUND)
                                 .body("{\"error\":\"Usuario con id " + userId + " no encontrado.\"}")
@@ -93,5 +95,46 @@ public class ObtenerUsuarioFunction {
                 .body(responseBody)
                 .header("Content-Type", "application/json")
                 .build();
+    }
+
+    private void sendEventToEventGrid(String eventType, int userId, String nombre, String email,
+            ExecutionContext context) {
+        try {
+            String eventId = UUID.randomUUID().toString();
+            String eventTime = OffsetDateTime.now().toString();
+
+            String jsonEvent = """
+                    [{
+                        "id": "%s",
+                        "eventType": "%s",
+                        "subject": "usuario/consultado",
+                        "eventTime": "%s",
+                        "data": {
+                            "id": %d,
+                            "nombre": "%s",
+                            "email": "%s"
+                        },
+                        "dataVersion": "1.0"
+                    }]
+                    """.formatted(eventId, eventType, eventTime, userId, nombre, email);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(EVENT_GRID_TOPIC_ENDPOINT))
+                    .header("aeg-sas-key", EVENT_GRID_TOPIC_KEY)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(jsonEvent))
+                    .build();
+
+            HttpClient.newHttpClient().sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                    .thenAccept(response -> context.getLogger()
+                            .info("Evento enviado a Event Grid: " + response.statusCode()))
+                    .exceptionally(e -> {
+                        context.getLogger().severe("Error al enviar evento a Event Grid: " + e.getMessage());
+                        return null;
+                    });
+
+        } catch (Exception e) {
+            context.getLogger().severe("Excepción al construir evento: " + e.getMessage());
+        }
     }
 }
