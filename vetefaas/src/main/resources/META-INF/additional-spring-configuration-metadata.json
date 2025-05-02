@@ -1,0 +1,5 @@
+{"properties": [{
+  "name": "azure.functions.graphql-url",
+  "type": "java.lang.String",
+  "description": "A description for 'azure.functions.graphql-url'"
+}]}
