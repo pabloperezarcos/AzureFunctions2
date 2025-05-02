@@ -10,21 +10,22 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Optional;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.OffsetDateTime;
+import java.util.UUID;
+
 /**
  * Función serverless en Azure que permite obtener la información de un rol
- * a partir de su identificador (id_rol) en la tabla "ROLES".
- *
- * Uso:
- * - Método HTTP GET.
- * - Se debe pasar el parámetro "id" en la URL, por ejemplo:
- * https://<NombreFunctionApp>.azurewebsites.net/api/obtenerrol?id=1
- *
- * La función utiliza las variables de entorno DB_URL, DB_USER y DB_PASSWORD
- * para
- * conectarse a la base de datos. Si se encuentra el rol, retorna un JSON con
- * el id y el nombre del rol.
+ * a partir de su identificador (id_rol) en la tabla "ROLES" y enviar un evento
+ * a Event Grid cuando se crea correctamente.
  */
 public class ObtenerRolFunction {
+
+    private static final String EVENT_GRID_TOPIC_ENDPOINT = "https://duoc-eventgrid.eastus-1.eventgrid.azure.net/api/events";
+    private static final String EVENT_GRID_TOPIC_KEY = "1gI3QLmJzNponcQy1U6MGqj9FVXeKzrjqbZRbfyhFs5Gd89Woz9gJQQJ99BDACYeBjFXJ3w3AAABAZEGGB1u";
 
     @FunctionName("ObtenerRol")
     public HttpResponseMessage run(
@@ -69,6 +70,9 @@ public class ObtenerRolFunction {
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
                         rol = rs.getString("rol");
+
+                        // Enviar evento a Event Grid
+                        sendEventToEventGrid("RolConsultado", rolId, rol, context);
                     } else {
                         return request.createResponseBuilder(HttpStatus.NOT_FOUND)
                                 .body("{\"error\":\"Rol con id " + rolId + " no encontrado.\"}")
@@ -91,5 +95,44 @@ public class ObtenerRolFunction {
                 .body(responseBody)
                 .header("Content-Type", "application/json")
                 .build();
+    }
+
+    private void sendEventToEventGrid(String eventType, int rolId, String rolName, ExecutionContext context) {
+        try {
+            String eventId = UUID.randomUUID().toString();
+            String eventTime = OffsetDateTime.now().toString();
+
+            String jsonEvent = """
+                    [{
+                        "id": "%s",
+                        "eventType": "%s",
+                        "subject": "rol/consultado",
+                        "eventTime": "%s",
+                        "data": {
+                            "id": %d,
+                            "rol": "%s"
+                        },
+                        "dataVersion": "1.0"
+                    }]
+                    """.formatted(eventId, eventType, eventTime, rolId, rolName);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(EVENT_GRID_TOPIC_ENDPOINT))
+                    .header("aeg-sas-key", EVENT_GRID_TOPIC_KEY)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(jsonEvent))
+                    .build();
+
+            HttpClient.newHttpClient().sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                    .thenAccept(response -> context.getLogger()
+                            .info("Evento enviado a Event Grid: " + response.statusCode()))
+                    .exceptionally(e -> {
+                        context.getLogger().severe("Error al enviar evento a Event Grid: " + e.getMessage());
+                        return null;
+                    });
+
+        } catch (Exception e) {
+            context.getLogger().severe("Excepción al construir evento: " + e.getMessage());
+        }
     }
 }
