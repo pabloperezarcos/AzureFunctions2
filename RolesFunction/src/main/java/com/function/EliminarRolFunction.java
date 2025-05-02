@@ -9,18 +9,21 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Optional;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.OffsetDateTime;
+import java.util.UUID;
+
 /**
- * Función serverless en Azure para eliminar un rol de la tabla "ROLES".
- *
- * Uso:
- * - Método HTTP DELETE.
- * - Se debe pasar el parámetro "id" en la URL, por ejemplo:
- * https://<TuFunctionApp>.azurewebsites.net/api/eliminarrol?id=1
- *
- * La función se conecta a la base de datos utilizando las variables de entorno:
- * DB_URL, DB_USER y DB_PASSWORD.
+ * Función serverless en Azure para eliminar un rol de la tabla "ROLES" y enviar
+ * un evento a Event Grid cuando se crea correctamente.
  */
 public class EliminarRolFunction {
+
+    private static final String EVENT_GRID_TOPIC_ENDPOINT = "https://duoc-eventgrid.eastus-1.eventgrid.azure.net/api/events";
+    private static final String EVENT_GRID_TOPIC_KEY = "1gI3QLmJzNponcQy1U6MGqj9FVXeKzrjqbZRbfyhFs5Gd89Woz9gJQQJ99BDACYeBjFXJ3w3AAABAZEGGB1u";
 
     /**
      * Función "EliminarRol" invocable mediante una petición HTTP DELETE.
@@ -75,6 +78,9 @@ public class EliminarRolFunction {
                 int rowsAffected = ps.executeUpdate();
                 if (rowsAffected > 0) {
                     responseMessage = "{\"mensaje\":\"Rol eliminado exitosamente\", \"id\":" + rolId + "}";
+
+                    // Enviar evento a Event Grid
+                    sendEventToEventGrid("RolEliminado", rolId, context);
                 } else {
                     responseMessage = "{\"error\":\"Rol con id " + rolId + " no encontrado.\"}";
                     return request.createResponseBuilder(HttpStatus.NOT_FOUND)
@@ -97,5 +103,43 @@ public class EliminarRolFunction {
                 .body(responseMessage)
                 .header("Content-Type", "application/json")
                 .build();
+    }
+
+    private void sendEventToEventGrid(String eventType, int rolId, ExecutionContext context) {
+        try {
+            String eventId = UUID.randomUUID().toString();
+            String eventTime = OffsetDateTime.now().toString();
+
+            String jsonEvent = """
+                    [{
+                        "id": "%s",
+                        "eventType": "%s",
+                        "subject": "rol/eliminado",
+                        "eventTime": "%s",
+                        "data": {
+                            "id": %d
+                        },
+                        "dataVersion": "1.0"
+                    }]
+                    """.formatted(eventId, eventType, eventTime, rolId);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(EVENT_GRID_TOPIC_ENDPOINT))
+                    .header("aeg-sas-key", EVENT_GRID_TOPIC_KEY)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(jsonEvent))
+                    .build();
+
+            HttpClient.newHttpClient().sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                    .thenAccept(response -> context.getLogger()
+                            .info("Evento enviado a Event Grid: " + response.statusCode()))
+                    .exceptionally(e -> {
+                        context.getLogger().severe("Error al enviar evento a Event Grid: " + e.getMessage());
+                        return null;
+                    });
+
+        } catch (Exception e) {
+            context.getLogger().severe("Excepción al construir evento: " + e.getMessage());
+        }
     }
 }
