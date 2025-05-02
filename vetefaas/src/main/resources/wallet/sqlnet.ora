@@ -1,0 +1,8 @@
+WALLET_LOCATION = 
+  (SOURCE = 
+    (METHOD = file) 
+    (METHOD_DATA = 
+      (DIRECTORY = "src/main/resources/wallet")
+    )
+  )
+SSL_SERVER_DN_MATCH=yes
