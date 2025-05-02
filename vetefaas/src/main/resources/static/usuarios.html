@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Gestión de Usuarios</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f3f4f6;
+            padding: 2rem;
+            max-width: 600px;
+            margin: auto;
+        }
+
+        h1,
+        h2 {
+            text-align: center;
+            color: #333;
+        }
+
+        form {
+            background-color: #fff;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        label {
+            display: block;
+            margin-top: 1rem;
+            font-weight: bold;
+        }
+
+        input,
+        select {
+            width: 100%;
+            padding: 0.5rem;
+            margin-top: 0.5rem;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        button {
+            margin-top: 1.5rem;
+            padding: 0.75rem;
+            width: 100%;
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #2563eb;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Crear Usuario</h1>
+    <form action="/usuario" method="post">
+        <label for="nombre">Nombre del Usuario:</label>
+        <input type="text" id="nombre" name="nombre" required />
+
+        <label for="email">Correo Electrónico:</label>
+        <input type="email" id="email" name="email" required />
+
+        <button type="submit">Crear Usuario</button>
+    </form>
+
+    <h2>Asignar Rol</h2>
+    <form action="/usuario/asignar-rol" method="post">
+        <label for="userId">ID del Usuario:</label>
+        <input type="text" id="userId" name="userId" required />
+
+        <label for="rolId">Selecciona un Rol:</label>
+        <select id="rolId" name="rolId" required>
+            <option value="">-- Selecciona --</option>
+            <option value="1">Administrador</option>
+            <option value="2">Veterinario</option>
+            <option value="3">Cliente</option>
+        </select>
+
+        <button type="submit">Asignar Rol</button>
+    </form>
+
+</body>
+
+</html>

@@ -9,22 +9,21 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Optional;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.OffsetDateTime;
+import java.util.UUID;
+
 /**
  * Función serverless en Azure encargada de crear un nuevo registro en la tabla
- * "ROLES".
- * 
- * Forma de uso:
- * - Se envía una petición POST con el cuerpo en texto plano que contenga
- * únicamente
- * el nombre del rol (por ejemplo: "Administrador").
- *
- * La función utiliza las variables de entorno (DB_URL, DB_USER, DB_PASSWORD)
- * para conectarse a
- * la base de datos Oracle. Se asume que la tabla "ROLES" tiene:
- * - id_rol: autogenerado
- * - rol: el nombre del rol.
+ * "ROLES" y enviar un evento a Event Grid cuando se crea correctamente.
  */
 public class CrearRolFunction {
+
+    private static final String EVENT_GRID_TOPIC_ENDPOINT = "https://topic-cloudnative2.eastus-1.eventgrid.azure.net/api/events";
+    private static final String EVENT_GRID_TOPIC_KEY = "C9MVwYnSdg8YinP6KPbsmkMjy2GsXAZCWGuu4G0gZxzomjtIX8BnJQQJ99BEACYeBjFXJ3w3AAABAZEGfSgJ";
 
     @FunctionName("CrearRol")
     public HttpResponseMessage run(
@@ -66,6 +65,9 @@ public class CrearRolFunction {
                 int rowsAffected = ps.executeUpdate();
                 if (rowsAffected > 0) {
                     responseMessage = "{\"mensaje\":\"Rol creado exitosamente\", \"rol\":\"" + rol + "\"}";
+
+                    // Enviar evento a Event Grid
+                    sendEventToEventGrid("RolCreado", rol, context);
                 } else {
                     responseMessage = "{\"error\":\"No se pudo crear el rol.\"}";
                 }
@@ -84,5 +86,43 @@ public class CrearRolFunction {
                 .body(responseMessage)
                 .header("Content-Type", "application/json")
                 .build();
+    }
+
+    private void sendEventToEventGrid(String eventType, String rolName, ExecutionContext context) {
+        try {
+            String eventId = UUID.randomUUID().toString();
+            String eventTime = OffsetDateTime.now().toString();
+
+            String jsonEvent = """
+                    [{
+                        "id": "%s",
+                        "eventType": "%s",
+                        "subject": "rol/creado",
+                        "eventTime": "%s",
+                        "data": {
+                            "rol": "%s"
+                        },
+                        "dataVersion": "1.0"
+                    }]
+                    """.formatted(eventId, eventType, eventTime, rolName);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(EVENT_GRID_TOPIC_ENDPOINT))
+                    .header("aeg-sas-key", EVENT_GRID_TOPIC_KEY)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(jsonEvent))
+                    .build();
+
+            HttpClient.newHttpClient().sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                    .thenAccept(response -> context.getLogger()
+                            .info("Evento enviado a Event Grid: " + response.statusCode()))
+                    .exceptionally(e -> {
+                        context.getLogger().severe("Error al enviar evento a Event Grid: " + e.getMessage());
+                        return null;
+                    });
+
+        } catch (Exception e) {
+            context.getLogger().severe("Excepción al construir evento: " + e.getMessage());
+        }
     }
 }

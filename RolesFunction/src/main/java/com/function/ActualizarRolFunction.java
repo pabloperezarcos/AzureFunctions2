@@ -9,22 +9,21 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Optional;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.OffsetDateTime;
+import java.util.UUID;
+
 /**
  * Función serverless en Azure para la operación UPDATE (actualización) de un
- * rol.
- * 
- * Uso:
- * - Método HTTP PUT.
- * - Se debe pasar el parámetro "id" en la URL, por ejemplo:
- * https://[NombreFunctionApp].azurewebsites.net/api/actualizarrol?id=1
- * - El cuerpo de la solicitud debe ser texto plano que contenga el nuevo nombre
- * del rol,
- * por ejemplo: "NuevoRol".
- *
- * La función se conecta a la base de datos utilizando las variables de entorno:
- * DB_URL, DB_USER y DB_PASSWORD.
+ * roly y enviar un evento a Event Grid.
  */
 public class ActualizarRolFunction {
+
+    private static final String EVENT_GRID_TOPIC_ENDPOINT = "https://topic-cloudnative2.eastus-1.eventgrid.azure.net/api/events";
+    private static final String EVENT_GRID_TOPIC_KEY = "C9MVwYnSdg8YinP6KPbsmkMjy2GsXAZCWGuu4G0gZxzomjtIX8BnJQQJ99BEACYeBjFXJ3w3AAABAZEGfSgJ";
 
     @FunctionName("ActualizarRol")
     public HttpResponseMessage run(
@@ -83,6 +82,9 @@ public class ActualizarRolFunction {
                 if (rowsAffected > 0) {
                     responseMessage = "{\"mensaje\":\"Rol actualizado exitosamente\", \"id\":" + rolId
                             + ", \"nuevoRol\":\"" + nuevoNombreRol + "\"}";
+
+                    // Enviar evento a Event Grid
+                    sendEventToEventGrid("RolActualizado", rolId, nuevoNombreRol, context);
                 } else {
                     responseMessage = "{\"error\":\"Rol con id " + rolId + " no encontrado.\"}";
                     return request.createResponseBuilder(HttpStatus.NOT_FOUND)
@@ -105,5 +107,44 @@ public class ActualizarRolFunction {
                 .body(responseMessage)
                 .header("Content-Type", "application/json")
                 .build();
+    }
+
+    private void sendEventToEventGrid(String eventType, int rolId, String nuevoRol, ExecutionContext context) {
+        try {
+            String eventId = UUID.randomUUID().toString();
+            String eventTime = OffsetDateTime.now().toString();
+
+            String jsonEvent = """
+                    [{
+                        "id": "%s",
+                        "eventType": "%s",
+                        "subject": "rol/actualizado",
+                        "eventTime": "%s",
+                        "data": {
+                            "id": %d,
+                            "nuevoRol": "%s"
+                        },
+                        "dataVersion": "1.0"
+                    }]
+                    """.formatted(eventId, eventType, eventTime, rolId, nuevoRol);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(EVENT_GRID_TOPIC_ENDPOINT))
+                    .header("aeg-sas-key", EVENT_GRID_TOPIC_KEY)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(jsonEvent))
+                    .build();
+
+            HttpClient.newHttpClient().sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                    .thenAccept(response -> context.getLogger()
+                            .info("Evento enviado a Event Grid: " + response.statusCode()))
+                    .exceptionally(e -> {
+                        context.getLogger().severe("Error al enviar evento a Event Grid: " + e.getMessage());
+                        return null;
+                    });
+
+        } catch (Exception e) {
+            context.getLogger().severe("Excepción al construir evento: " + e.getMessage());
+        }
     }
 }

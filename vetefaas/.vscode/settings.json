@@ -1,0 +1,12 @@
+{
+    "java.compile.nullAnalysis.mode": "automatic",
+    "azureFunctions.deploySubpath": "src\\main\\java\\proyecto\\vetefaas-functions/target/azure-functions/CrearUsuario",
+    "azureFunctions.postDeployTask": "npm install (functions)",
+    "azureFunctions.projectLanguage": "Java",
+    "azureFunctions.projectRuntime": "~4",
+    "debug.internalConsoleOptions": "neverOpen",
+    "azureFunctions.projectLanguageModel": 4,
+    "azureFunctions.preDeployTask": "package (functions)",
+    "azureFunctions.javaBuildTool": "maven",
+    "java.configuration.updateBuildConfiguration": "automatic"
+}

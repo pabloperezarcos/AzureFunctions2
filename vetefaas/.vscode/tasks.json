@@ -1,0 +1,45 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "shell",
+			"label": "npm install (functions)",
+			"command": "npm install",
+			"options": {
+				"cwd": "${workspaceFolder}/src\\main\\java\\proyecto\\vetefaas-functions"
+			}
+		},
+		{
+			"type": "shell",
+			"label": "npm prune (functions)",
+			"command": "npm prune --production",
+			"problemMatcher": [],
+			"options": {
+				"cwd": "${workspaceFolder}/src\\main\\java\\proyecto\\vetefaas-functions"
+			}
+		},
+		{
+			"type": "func",
+			"label": "func: host start",
+			"command": "host start",
+			"problemMatcher": "$func-java-watch",
+			"isBackground": true,
+			"options": {
+				"cwd": "${workspaceFolder}/src\\main\\java\\proyecto\\vetefaas-functions/target/azure-functions/CrearUsuario"
+			},
+			"dependsOn": "package (functions)"
+		},
+		{
+			"label": "package (functions)",
+			"command": "mvn clean package",
+			"type": "shell",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"options": {
+				"cwd": "${workspaceFolder}/src\\main\\java\\proyecto\\vetefaas-functions"
+			}
+		}
+	]
+}

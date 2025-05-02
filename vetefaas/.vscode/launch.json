@@ -1,0 +1,28 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "VetefaasApplication",
+            "request": "launch",
+            "mainClass": "proyecto.vetefaas.VetefaasApplication",
+            "projectName": "vetefaas"
+        },
+        {
+            "name": "Attach to Node Functions",
+            "type": "node",
+            "request": "attach",
+            "restart": true,
+            "port": 9229,
+            "preLaunchTask": "func: host start"
+        },
+        {
+            "name": "Attach to Java Functions",
+            "type": "java",
+            "request": "attach",
+            "hostName": "127.0.0.1",
+            "port": 5005,
+            "preLaunchTask": "func: host start"
+        }
+    ]
+}

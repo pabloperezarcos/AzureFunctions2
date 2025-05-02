@@ -9,19 +9,21 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Optional;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.OffsetDateTime;
+import java.util.UUID;
+
 /**
- * Función serverless en Azure para la operación DELETE (eliminar) de un usuario
- * en la tabla "usuarios".
- *
- * Uso:
- * - Método HTTP DELETE.
- * - Se debe pasar el parámetro "id" en la URL, por ejemplo:
- * https://[NombreFunctionApp].azurewebsites.net/api/eliminarusuario?id=1
- *
- * La función se conecta a la base de datos utilizando las variables de entorno:
- * DB_URL, DB_USER y DB_PASSWORD.
+ * Función serverless en Azure para eliminar un usuario
+ * y enviar un evento a Event Grid.
  */
 public class EliminarUsuarioFunction {
+
+    private static final String EVENT_GRID_TOPIC_ENDPOINT = "https://topic-cloudnative2.eastus-1.eventgrid.azure.net/api/events";
+    private static final String EVENT_GRID_TOPIC_KEY = "C9MVwYnSdg8YinP6KPbsmkMjy2GsXAZCWGuu4G0gZxzomjtIX8BnJQQJ99BEACYeBjFXJ3w3AAABAZEGfSgJ";
 
     @FunctionName("EliminarUsuario")
     public HttpResponseMessage run(
@@ -64,6 +66,9 @@ public class EliminarUsuarioFunction {
                 int rowsAffected = ps.executeUpdate();
                 if (rowsAffected > 0) {
                     responseMessage = "{\"mensaje\":\"Usuario eliminado exitosamente\", \"id\":" + usuarioId + "}";
+
+                    // Enviar evento a Event Grid
+                    sendEventToEventGrid("UsuarioEliminado", usuarioId, context);
                 } else {
                     responseMessage = "{\"error\":\"Usuario con id " + usuarioId + " no encontrado.\"}";
                     return request.createResponseBuilder(HttpStatus.NOT_FOUND)
@@ -86,5 +91,43 @@ public class EliminarUsuarioFunction {
                 .body(responseMessage)
                 .header("Content-Type", "application/json")
                 .build();
+    }
+
+    private void sendEventToEventGrid(String eventType, int usuarioId, ExecutionContext context) {
+        try {
+            String eventId = UUID.randomUUID().toString();
+            String eventTime = OffsetDateTime.now().toString();
+
+            String jsonEvent = """
+                    [{
+                        "id": "%s",
+                        "eventType": "%s",
+                        "subject": "usuario/eliminado",
+                        "eventTime": "%s",
+                        "data": {
+                            "id": %d
+                        },
+                        "dataVersion": "1.0"
+                    }]
+                    """.formatted(eventId, eventType, eventTime, usuarioId);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(EVENT_GRID_TOPIC_ENDPOINT))
+                    .header("aeg-sas-key", EVENT_GRID_TOPIC_KEY)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(jsonEvent))
+                    .build();
+
+            HttpClient.newHttpClient().sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                    .thenAccept(response -> context.getLogger()
+                            .info("Evento enviado a Event Grid: " + response.statusCode()))
+                    .exceptionally(e -> {
+                        context.getLogger().severe("Error al enviar evento a Event Grid: " + e.getMessage());
+                        return null;
+                    });
+
+        } catch (Exception e) {
+            context.getLogger().severe("Excepción al construir evento: " + e.getMessage());
+        }
     }
 }

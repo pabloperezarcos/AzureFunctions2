@@ -1,0 +1,2 @@
+1.- Compilar proyecto: mvn clean package -DskipTests
+2.- Desplegar funciones en Azure: mvn azure-functions:deploy
