@@ -15,12 +15,22 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Optional;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.OffsetDateTime;
+import java.util.UUID;
+
 /**
  * Función serverless en Azure encargada de asignar un rol existente a un
- * usuario.
+ * usuario y enviar un evento a Event Grid cuando se crea correctamente.
  * Para ello, inserta un nuevo registro en la tabla intermedia "usuario_roles".
  */
 public class AsignarRolFunction {
+
+    private static final String EVENT_GRID_TOPIC_ENDPOINT = "https://duoc-eventgrid.eastus-1.eventgrid.azure.net/api/events";
+    private static final String EVENT_GRID_TOPIC_KEY = "1gI3QLmJzNponcQy1U6MGqj9FVXeKzrjqbZRbfyhFs5Gd89Woz9gJQQJ99BDACYeBjFXJ3w3AAABAZEGGB1u";
 
     /**
      * Nombre de la función en Azure: "AsignarRol".
@@ -69,17 +79,26 @@ public class AsignarRolFunction {
         String dbPassword = System.getenv("DB_PASSWORD");
 
         String responseMessage;
+
         try (Connection connection = DriverManager.getConnection(dbUrl, dbUser, dbPassword)) {
             // Insertar en la tabla 'usuario_roles'
             String sql = "INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (?, ?)";
+
+            int userIdInt = Integer.parseInt(userId);
+            int rolIdInt = Integer.parseInt(rolId);
+
             try (PreparedStatement ps = connection.prepareStatement(sql)) {
                 ps.setInt(1, Integer.parseInt(userId));
                 ps.setInt(2, Integer.parseInt(rolId));
+
                 int rowsAffected = ps.executeUpdate();
                 if (rowsAffected > 0) {
                     // Construye mensaje de éxito en formato JSON
                     responseMessage = "{\"mensaje\":\"Rol asignado exitosamente\", \"userId\":\"" + userId
                             + "\", \"rolId\":\"" + rolId + "\"}";
+
+                    // Enviar evento a Event Grid
+                    sendEventToEventGrid("RolAsignado", userIdInt, rolIdInt, context);
                 } else {
                     responseMessage = "{\"error\":\"No se pudo asignar el rol.\"}";
                 }
@@ -105,5 +124,44 @@ public class AsignarRolFunction {
                 .body(responseMessage)
                 .header("Content-Type", "application/json")
                 .build();
+    }
+
+    private void sendEventToEventGrid(String eventType, int userId, int rolId, ExecutionContext context) {
+        try {
+            String eventId = UUID.randomUUID().toString();
+            String eventTime = OffsetDateTime.now().toString();
+
+            String jsonEvent = """
+                    [{
+                        "id": "%s",
+                        "eventType": "%s",
+                        "subject": "rol/asignado",
+                        "eventTime": "%s",
+                        "data": {
+                            "usuarioId": %d,
+                            "rolId": %d
+                        },
+                        "dataVersion": "1.0"
+                    }]
+                    """.formatted(eventId, eventType, eventTime, userId, rolId);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(EVENT_GRID_TOPIC_ENDPOINT))
+                    .header("aeg-sas-key", EVENT_GRID_TOPIC_KEY)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(jsonEvent))
+                    .build();
+
+            HttpClient.newHttpClient().sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                    .thenAccept(response -> context.getLogger()
+                            .info("Evento enviado a Event Grid: " + response.statusCode()))
+                    .exceptionally(e -> {
+                        context.getLogger().severe("Error al enviar evento a Event Grid: " + e.getMessage());
+                        return null;
+                    });
+
+        } catch (Exception e) {
+            context.getLogger().severe("Excepción al construir evento: " + e.getMessage());
+        }
     }
 }
