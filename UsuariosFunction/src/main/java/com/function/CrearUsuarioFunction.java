@@ -15,15 +15,21 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Optional;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.OffsetDateTime;
+import java.util.UUID;
+
 /**
- * Función serverless en Azure encargada de crear un nuevo registro en la tabla
- * "usuarios".
- * 
- * Forma de uso:
- * - Petición POST con el cuerpo en texto plano,
- * siguiendo el formato "nombre,email".
+ * Función serverless en Azure encargada de crear un nuevo usuario
+ * y enviar un evento a Event Grid.
  */
 public class CrearUsuarioFunction {
+
+        private static final String EVENT_GRID_TOPIC_ENDPOINT = "https://duoc-eventgrid.eastus-1.eventgrid.azure.net/api/events";
+        private static final String EVENT_GRID_TOPIC_KEY = "1gI3QLmJzNponcQy1U6MGqj9FVXeKzrjqbZRbfyhFs5Gd89Woz9gJQQJ99BDACYeBjFXJ3w3AAABAZEGGB1u";
 
         /**
          * Nombre de la función en Azure: "CrearUsuario".
@@ -80,6 +86,9 @@ public class CrearUsuarioFunction {
                                         // Construir respuesta de éxito
                                         responseMessage = "{\"mensaje\":\"Usuario creado exitosamente\", \"nombre\":\""
                                                         + nombre + "\", \"email\":\"" + email + "\"}";
+
+                                        // Enviar evento a Event Grid
+                                        sendEventToEventGrid("UsuarioCreado", nombre, email, context);
                                 } else {
                                         responseMessage = "{\"error\":\"No se pudo crear el usuario.\"}";
                                 }
@@ -99,5 +108,45 @@ public class CrearUsuarioFunction {
                                 .body(responseMessage)
                                 .header("Content-Type", "application/json")
                                 .build();
+        }
+
+        private void sendEventToEventGrid(String eventType, String nombre, String email, ExecutionContext context) {
+                try {
+                        String eventId = UUID.randomUUID().toString();
+                        String eventTime = OffsetDateTime.now().toString();
+
+                        String jsonEvent = """
+                                        [{
+                                            "id": "%s",
+                                            "eventType": "%s",
+                                            "subject": "usuario/creado",
+                                            "eventTime": "%s",
+                                            "data": {
+                                                "nombre": "%s",
+                                                "email": "%s"
+                                            },
+                                            "dataVersion": "1.0"
+                                        }]
+                                        """.formatted(eventId, eventType, eventTime, nombre, email);
+
+                        HttpRequest request = HttpRequest.newBuilder()
+                                        .uri(URI.create(EVENT_GRID_TOPIC_ENDPOINT))
+                                        .header("aeg-sas-key", EVENT_GRID_TOPIC_KEY)
+                                        .header("Content-Type", "application/json")
+                                        .POST(HttpRequest.BodyPublishers.ofString(jsonEvent))
+                                        .build();
+
+                        HttpClient.newHttpClient().sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                                        .thenAccept(response -> context.getLogger()
+                                                        .info("Evento enviado a Event Grid: " + response.statusCode()))
+                                        .exceptionally(e -> {
+                                                context.getLogger().severe("Error al enviar evento a Event Grid: "
+                                                                + e.getMessage());
+                                                return null;
+                                        });
+
+                } catch (Exception e) {
+                        context.getLogger().severe("Excepción al construir evento: " + e.getMessage());
+                }
         }
 }
