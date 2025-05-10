@@ -2,32 +2,32 @@
 <html lang="es" xmlns:th="http://www.thymeleaf.org">
 
 <head>
-    <meta charset="UTF-8" />
-    <title th:text="${usuario.id} == null ? 'Crear Usuario' : 'Editar Usuario'">Formulario Usuario</title>
-    <link rel="stylesheet" th:href="@{/css/styles.css}" />
+    <meta charset="UTF-8">
+    <title th:text="${usuario.id == null} ? 'Crear Usuario' : 'Editar Usuario'">Formulario Usuario</title>
 </head>
 
 <body>
-    <h1 th:text="${usuario.id} == null ? 'Crear Usuario' : 'Editar Usuario'">Formulario Usuario</h1>
 
-    <form th:action="@{/usuarios/guardar}" th:object="${usuario}" method="post">
+    <h1 th:text="${usuario.id == null} ? 'Crear Nuevo Usuario' : 'Editar Usuario'">Formulario Usuario</h1>
+
+    <form action="#" th:action="@{/usuarios/guardar(modo=${modo})}" th:object="${usuario}" method="post">
+        <!-- Campo oculto para ID -->
         <input type="hidden" th:field="*{id}" />
 
-        <div>
-            <label for="nombre">Nombre:</label>
-            <input type="text" id="nombre" th:field="*{nombre}" placeholder="Nombre completo" required />
-        </div>
+        <label for="nombre">Nombre:</label>
+        <input type="text" id="nombre" th:field="*{nombre}" placeholder="Nombre del usuario" required />
+        <br><br>
 
-        <div>
-            <label for="email">Email:</label>
-            <input type="email" id="email" th:field="*{email}" placeholder="usuario@dominio.com" required />
-        </div>
+        <label for="email">Email:</label>
+        <input type="email" id="email" th:field="*{email}" placeholder="Correo electrónico" required />
+        <br><br>
 
-        <div>
-            <button type="submit">Guardar</button>
-            <a th:href="@{/usuarios}">Cancelar</a>
-        </div>
+        <button type="submit" th:text="${usuario.id == null} ? 'Crear' : 'Actualizar'">Guardar</button>
     </form>
+
+    <br>
+    <a th:href="@{/usuarios(modo=${modo})}">← Volver al listado de Usuarios</a>
+
 </body>
 
 </html>

@@ -3,32 +3,32 @@ package proyecto.vetefaas.controller;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
-import proyecto.vetefaas.model.Usuario;
+import proyecto.vetefaas.model.Rol;
 import proyecto.vetefaas.service.AzureFunctionService;
 
 import java.util.List;
 
 @Controller
-@RequestMapping("/usuarios")
-public class UsuariosRestController {
+@RequestMapping("/roles")
+public class RolesRestController {
 
     private final AzureFunctionService azureService;
 
-    public UsuariosRestController(AzureFunctionService azureService) {
+    public RolesRestController(AzureFunctionService azureService) {
         this.azureService = azureService;
     }
 
-    // Mostrar listado de usuarios
+    // Mostrar listado de roles
     @GetMapping
-    public String listarUsuarios(@RequestParam(name = "modo", required = false, defaultValue = "graphql") String modo,
+    public String listarRoles(@RequestParam(name = "modo", required = false, defaultValue = "graphql") String modo,
             Model model) {
-        List<Usuario> usuarios = "rest".equalsIgnoreCase(modo)
-                ? azureService.obtenerUsuariosRest()
-                : azureService.obtenerUsuariosGraphql();
+        List<Rol> roles = "rest".equalsIgnoreCase(modo)
+                ? azureService.obtenerRolesRest()
+                : azureService.obtenerRolesGraphql();
 
-        model.addAttribute("usuarios", usuarios);
+        model.addAttribute("roles", roles);
         model.addAttribute("modo", modo);
-        return "usuarios";
+        return "roles";
     }
 
     // Mostrar formulario de creación
@@ -36,9 +36,9 @@ public class UsuariosRestController {
     public String mostrarFormularioCrear(
             @RequestParam(name = "modo", required = false, defaultValue = "graphql") String modo,
             Model model) {
-        model.addAttribute("usuario", new Usuario());
+        model.addAttribute("rol", new Rol());
         model.addAttribute("modo", modo);
-        return "formulario_usuario";
+        return "formulario_rol";
     }
 
     // Mostrar formulario de edición
@@ -46,29 +46,29 @@ public class UsuariosRestController {
     public String mostrarFormularioEditar(@PathVariable int id,
             @RequestParam(name = "modo", required = false, defaultValue = "graphql") String modo,
             Model model) {
-        Usuario usuario = azureService.obtenerUsuarioPorId(id);
-        model.addAttribute("usuario", usuario);
+        Rol rol = azureService.obtenerRolPorId(id);
+        model.addAttribute("rol", rol);
         model.addAttribute("modo", modo);
-        return "formulario_usuario";
+        return "formulario_rol";
     }
 
     // Procesar formulario
     @PostMapping("/guardar")
-    public String guardarUsuario(@ModelAttribute Usuario usuario,
+    public String guardarRol(@ModelAttribute Rol rol,
             @RequestParam(name = "modo", required = false, defaultValue = "graphql") String modo) {
-        if (usuario.getId() == null) {
-            azureService.crearUsuario(usuario);
+        if (rol.getId() == null) {
+            azureService.crearRol(rol);
         } else {
-            azureService.actualizarUsuario(usuario);
+            azureService.actualizarRol(rol);
         }
-        return "redirect:/usuarios?modo=" + modo;
+        return "redirect:/roles?modo=" + modo;
     }
 
-    // Eliminar usuario
+    // Eliminar rol
     @GetMapping("/eliminar/{id}")
-    public String eliminarUsuario(@PathVariable int id,
+    public String eliminarRol(@PathVariable int id,
             @RequestParam(name = "modo", required = false, defaultValue = "graphql") String modo) {
-        azureService.eliminarUsuario(id);
-        return "redirect:/usuarios?modo=" + modo;
+        azureService.eliminarRol(id);
+        return "redirect:/roles?modo=" + modo;
     }
 }

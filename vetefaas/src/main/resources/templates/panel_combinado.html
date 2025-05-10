@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Panel CRUD</title>
+</head>
+
+<body>
+
+    <h1 th:text="'Modo: ' + (${modo} != null ? ${modo.toUpperCase()} : 'DESCONOCIDO') + ' CRUD'"></h1>
+
+    <h2>Usuarios</h2>
+    <a th:href="@{'/usuarios/crear?modo=' + ${modo}}">
+        <button>+ Crear Usuario</button>
+    </a>
+    <table border="1">
+        <tr>
+            <th>ID</th>
+            <th>Nombre</th>
+            <th>Email</th>
+            <th>Acciones</th>
+        </tr>
+        <tr th:each="usuario : ${usuarios}">
+            <td th:text="${usuario.id}">ID</td>
+            <td th:text="${usuario.nombre}">Nombre</td>
+            <td th:text="${usuario.email}">Email</td>
+            <td>
+                <a th:href="@{'/usuarios/editar/' + ${usuario.id} + '?modo=' + ${modo}}">Editar</a> |
+                <a th:href="@{'/usuarios/eliminar/' + ${usuario.id} + '?modo=' + ${modo}}">Eliminar</a>
+            </td>
+        </tr>
+    </table>
+
+    <h2>Roles</h2>
+    <a th:href="@{'/roles/crear?modo=' + ${modo}}">
+        <button>+ Crear Rol</button>
+    </a>
+    <table border="1">
+        <tr>
+            <th>ID</th>
+            <th>Rol</th>
+            <th>Acciones</th>
+        </tr>
+        <tr th:each="rol : ${roles}">
+            <td th:text="${rol.id}">ID</td>
+            <td th:text="${rol.rol}">Nombre Rol</td>
+            <td>
+                <a th:href="@{'/roles/editar/' + ${rol.id} + '?modo=' + ${modo}}">Editar</a> |
+                <a th:href="@{'/roles/eliminar/' + ${rol.id} + '?modo=' + ${modo}}">Eliminar</a>
+            </td>
+        </tr>
+    </table>
+
+    <br>
+    <a href="/">← Volver al inicio</a>
+
+</body>
+
+</html>
