@@ -61,7 +61,7 @@ public class RolesRestController {
         } else {
             azureService.actualizarRol(rol);
         }
-        return "redirect:/roles?modo=" + modo;
+         return "redirect:/modo/" + modo;
     }
 
     // Eliminar rol
@@ -69,6 +69,6 @@ public class RolesRestController {
     public String eliminarRol(@PathVariable int id,
             @RequestParam(name = "modo", required = false, defaultValue = "graphql") String modo) {
         azureService.eliminarRol(id);
-        return "redirect:/roles?modo=" + modo;
+         return "redirect:/modo/" + modo;
     }
 }
