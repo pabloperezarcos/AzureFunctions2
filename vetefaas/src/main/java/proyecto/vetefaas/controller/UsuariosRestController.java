@@ -61,7 +61,7 @@ public class UsuariosRestController {
         } else {
             azureService.actualizarUsuario(usuario);
         }
-        return "redirect:/usuarios?modo=" + modo;
+         return "redirect:/modo/" + modo;
     }
 
     // Eliminar usuario
@@ -69,6 +69,6 @@ public class UsuariosRestController {
     public String eliminarUsuario(@PathVariable int id,
             @RequestParam(name = "modo", required = false, defaultValue = "graphql") String modo) {
         azureService.eliminarUsuario(id);
-        return "redirect:/usuarios?modo=" + modo;
+         return "redirect:/modo/" + modo;
     }
 }
