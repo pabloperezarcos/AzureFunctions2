@@ -183,7 +183,7 @@ public class AzureFunctionService {
 
                     return new Rol(
                             id,
-                            (String) r.get("nombre"));
+                            (String) r.get("rol"));
                 })
                 .collect(Collectors.toList());
     }
