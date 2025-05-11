@@ -28,6 +28,7 @@ public class AzureFunctionService {
     private final String ACTUALIZAR_ROL_URL = ROLES_REST + "/actualizarrol?id={id}";
     private final String ELIMINAR_ROL_URL = ROLES_REST + "/eliminarrol?id={id}";
     private final String OBTENER_ROL_URL = ROLES_REST + "/obtenerrol?id={id}";
+    private final String ASIGNAR_ROL_URL = ROLES_REST + "/asignarrol";
 
     // ------------------ GraphQL ------------------
     @Value("${azure.functions.graphql-url-usuarios}")
@@ -37,6 +38,17 @@ public class AzureFunctionService {
     private String graphqlRolesUrl;
 
     // ------------------ CRUD Usuarios REST ------------------
+    /*
+     * public void crearUsuario(Usuario usuario) {
+     * String body = usuario.getNombre() + "," + usuario.getEmail();
+     * HttpHeaders headers = new HttpHeaders();
+     * headers.setContentType(MediaType.TEXT_PLAIN);
+     * HttpEntity<String> entity = new HttpEntity<>(body, headers);
+     * 
+     * restTemplate.postForEntity(CREAR_USUARIO_URL, entity, String.class);
+     * }
+     */
+
     public void crearUsuario(Usuario usuario) {
         String body = usuario.getNombre() + "," + usuario.getEmail();
         HttpHeaders headers = new HttpHeaders();
@@ -44,6 +56,20 @@ public class AzureFunctionService {
         HttpEntity<String> entity = new HttpEntity<>(body, headers);
 
         restTemplate.postForEntity(CREAR_USUARIO_URL, entity, String.class);
+
+        List<Usuario> usuarios = obtenerTodosLosUsuarios();
+        if (!usuarios.isEmpty()) {
+            Usuario ultimoUsuario = usuarios.stream()
+                    .max(Comparator.comparingInt(Usuario::getId))
+                    .orElseThrow();
+
+            int usuarioId = ultimoUsuario.getId();
+            int rolPorDefecto = 3;
+
+            String asignarBody = usuarioId + "," + rolPorDefecto;
+            HttpEntity<String> asignarEntity = new HttpEntity<>(asignarBody, headers);
+            restTemplate.postForEntity(ASIGNAR_ROL_URL, asignarEntity, String.class);
+        }
     }
 
     public void actualizarUsuario(Usuario usuario) {
