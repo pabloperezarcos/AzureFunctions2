@@ -70,8 +70,14 @@ public class EliminarRolFunction {
 
         // Intentar establecer la conexión y ejecutar la sentencia DELETE
         try (Connection connection = DriverManager.getConnection(dbUrl, dbUser, dbPassword)) {
-            // La tabla "ROLES" se define en mayúsculas y se indica entre comillas para
-            // respetar el case sensitive.
+            // 1. Eliminar relaciones USUARIO_ROLES
+            String deleteUsuarioRolesSql = "DELETE FROM \"USUARIO_ROLES\" WHERE ROL_ID = ?";
+            try (PreparedStatement psDeleteUR = connection.prepareStatement(deleteUsuarioRolesSql)) {
+                psDeleteUR.setInt(1, rolId);
+                psDeleteUR.executeUpdate();
+            }
+
+            // 2. Eliminar el rol de ROLES
             String sql = "DELETE FROM \"ROLES\" WHERE id_rol = ?";
             try (PreparedStatement ps = connection.prepareStatement(sql)) {
                 ps.setInt(1, rolId);
@@ -79,7 +85,7 @@ public class EliminarRolFunction {
                 if (rowsAffected > 0) {
                     responseMessage = "{\"mensaje\":\"Rol eliminado exitosamente\", \"id\":" + rolId + "}";
 
-                    // Enviar evento a Event Grid
+                    // Enviar evento
                     sendEventToEventGrid("RolEliminado", rolId, context);
                 } else {
                     responseMessage = "{\"error\":\"Rol con id " + rolId + " no encontrado.\"}";
@@ -98,7 +104,6 @@ public class EliminarRolFunction {
                     .build();
         }
 
-        // Retornar respuesta exitosa con código HTTP 200
         return request.createResponseBuilder(HttpStatus.OK)
                 .body(responseMessage)
                 .header("Content-Type", "application/json")
